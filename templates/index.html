@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Levered ETF Momentum Dashboard — Matrix Series</title>
+<style>
+:root {
+  --bg:      #eef1f6;
+  --surface: #ffffff;
+  --header:  #0f2240;
+  --border:  #d0d7e3;
+  --text:    #1a2035;
+  --muted:   #6b7280;
+  --accent:  #2563eb;
+  --bull:    #15803d;
+  --bear:    #991b1b;
+  --neut:    #374151;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13.5px; }
+
+/* ── Header ── */
+header {
+  background: var(--header); color: #fff;
+  padding: 10px 18px;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+  position: sticky; top: 0; z-index: 30;
+  box-shadow: 0 2px 10px rgba(0,0,0,.3);
+}
+.h-title { font-size: 16px; font-weight: 700; }
+.h-sub   { font-size: 10.5px; color: #93c5fd; margin-top: 2px; }
+.h-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.badge   { background: rgba(255,255,255,.12); border-radius: 6px; padding: 4px 10px; font-size: 11px; color: #cbd5e1; }
+.badge b { color: #fff; }
+.score-pill { border-radius: 8px; padding: 6px 14px; font-size: 13px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+.pill-bull { background: #166534; color: #bbf7d0; }
+.pill-bear { background: #991b1b; color: #fecaca; }
+.pill-neut { background: #374151; color: #d1d5db; }
+.pill-dot  { width: 9px; height: 9px; border-radius: 50%; }
+.dot-bull  { background: #4ade80; }
+.dot-bear  { background: #f87171; }
+.dot-neut  { background: #9ca3af; }
+
+/* ── Tabs ── */
+.tab-bar {
+  background: #1e2d45; display: flex; gap: 2px; padding: 0 14px;
+  border-bottom: 2px solid #334155;
+}
+.tab-btn {
+  background: none; border: none; color: #93c5fd;
+  padding: 8px 18px; font-size: 12px; font-weight: 600;
+  cursor: pointer; border-bottom: 2px solid transparent;
+  margin-bottom: -2px; transition: color .15s;
+  letter-spacing: .3px;
+}
+.tab-btn:hover { color: #fff; }
+.tab-btn.active { color: #fff; border-bottom-color: #2563eb; }
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* ── Loading ── */
+#loading-banner {
+  background: #1e40af; color: #fff;
+  padding: 10px 16px; font-size: 12.5px;
+  display: flex; align-items: center; gap: 12px; justify-content: center;
+}
+
+/* ── Layout ── */
+.main { padding: 14px 14px 30px; display: flex; flex-direction: column; gap: 16px; }
+
+/* ── Cards ── */
+.card { background: var(--surface); border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
+.card-header {
+  background: #1e2d45; color: #93c5fd;
+  padding: 8px 14px; font-size: 11px; font-weight: 700;
+  letter-spacing: .4px; text-transform: uppercase;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-body { padding: 14px; }
+
+/* ── Stats row ── */
+.stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.stat-box  { background: var(--surface); border-radius: 8px; padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,0,0,.07); text-align: center; }
+.stat-val  { font-size: 26px; font-weight: 800; line-height: 1.1; }
+.stat-lbl  { font-size: 10.5px; color: var(--muted); margin-top: 3px; }
+.c-bull { color: var(--bull); } .c-bear { color: var(--bear); } .c-neut { color: var(--neut); }
+
+/* ── Finviz breadth bars ── */
+.fv-bars {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+.fv-bar-card {
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 10px 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.07);
+}
+.fv-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.fv-bar-label .fv-green { color: #15803d; }
+.fv-bar-label .fv-red   { color: #991b1b; }
+.fv-bar-track {
+  height: 14px;
+  border-radius: 3px;
+  display: flex;
+  overflow: hidden;
+}
+.fv-bar-left {
+  background: #16a34a;
+  height: 100%;
+  border-radius: 3px 0 0 3px;
+  transition: width .3s;
+}
+.fv-bar-right {
+  background: #dc2626;
+  height: 100%;
+  border-radius: 0 3px 3px 0;
+  flex: 1;
+}
+.fv-bar-sub {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9.5px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+/* ── Charts — shared scroll container ── */
+.charts-scroll-wrap {
+  overflow-x: auto;
+  background: var(--surface);
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+.charts-inner {
+  min-width: 900px;
+  padding: 0;
+}
+.chart-section {
+  border-bottom: 1px solid var(--border);
+}
+.chart-section:last-child { border-bottom: none; }
+.chart-section-header {
+  background: #1e2d45; color: #93c5fd;
+  padding: 7px 14px; font-size: 11px; font-weight: 700;
+  letter-spacing: .4px; text-transform: uppercase;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.chart-body { padding: 12px 14px 8px; }
+
+/* ── Line chart ── */
+#chart-wrap { position: relative; height: 380px; }
+canvas#breadth-chart { width: 100% !important; height: 100% !important; }
+
+.zone-legend {
+  display: flex; gap: 16px; padding: 6px 14px 10px;
+  font-size: 11px; color: var(--muted);
+}
+.zl-item { display: flex; align-items: center; gap: 5px; }
+.zl-swatch { width: 14px; height: 10px; border-radius: 2px; }
+.zl-bull-s { background: rgba(21,128,61,.35); }
+.zl-neut-s { background: rgba(100,116,139,.18); }
+.zl-bear-s { background: rgba(153,27,27,.30); }
+
+/* ── Momentum pixel grid ── */
+.px-grid-wrap {
+  border-top: 1px solid var(--border);
+  padding: 0;
+  overflow: hidden;
+}
+.px-grid-header {
+  background: #1e2d45; color: #93c5fd;
+  padding: 5px 14px; font-size: 10px; font-weight: 700;
+  letter-spacing: .4px; text-transform: uppercase;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.px-grid-body {
+  display: flex;
+  overflow: hidden;
+}
+.px-labels {
+  flex-shrink: 0;
+  background: #f8fafc;
+  border-right: 1px solid var(--border);
+  padding: 0;
+}
+.px-label {
+  height: 4px;
+  line-height: 4px;
+  font-size: 0;
+  padding: 0;
+  overflow: hidden;
+}
+.px-label-vis {
+  height: 14px;
+  line-height: 14px;
+  font-size: 9px;
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+  color: var(--muted);
+  padding: 0 4px;
+  white-space: nowrap;
+  border-bottom: 1px solid #f0f0f0;
+}
+.px-label-gap {
+  height: 3px;
+  background: #e5e7eb;
+}
+.px-canvas {
+  flex: 1;
+  overflow-x: auto;
+  display: flex;
+}
+.px-col {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 3px;
+}
+.px-cell {
+  width: 3px;
+  height: 4px;
+  flex-shrink: 0;
+}
+.px-cell-vis {
+  width: 3px;
+  height: 14px;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(0,0,0,.03);
+}
+.px-gap {
+  height: 3px;
+  background: #e5e7eb;
+  width: 3px;
+  flex-shrink: 0;
+}
+.px-bull  { background: #16a34a; }
+.px-bear  { background: #dc2626; }
+.px-na    { background: #e5e7eb; }
+.px-pct-hi { background: #16a34a; }
+.px-pct-md { background: #9ca3af; }
+.px-pct-lo { background: #dc2626; }
+
+/* ── How It Works tab ── */
+.how-section { max-width: 780px; margin: 0 auto; }
+.how-section h2 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; color: var(--text); }
+.how-section h3 { font-size: 13px; font-weight: 700; margin: 16px 0 6px; color: #1e40af; }
+.how-section p  { font-size: 13px; line-height: 1.65; color: #374151; margin-bottom: 8px; }
+.how-section ul { padding-left: 20px; margin-bottom: 8px; }
+.how-section li { font-size: 13px; line-height: 1.7; color: #374151; }
+.formula-box {
+  background: #0f172a; color: #93c5fd;
+  border-radius: 8px; padding: 14px 18px;
+  font-family: 'Courier New', monospace; font-size: 12px;
+  line-height: 1.8; margin: 10px 0 16px;
+}
+.zone-table { width: 100%; border-collapse: collapse; margin: 10px 0 16px; font-size: 13px; }
+.zone-table th { background: #1e2d45; color: #93c5fd; padding: 7px 12px; text-align: left; }
+.zone-table td { padding: 7px 12px; border-bottom: 1px solid var(--border); }
+.zone-table tr:nth-child(even) td { background: #f8fafc; }
+
+footer {
+  text-align: center; padding: 14px; color: var(--muted);
+  font-size: 11px; border-top: 1px solid var(--border);
+  background: var(--surface); margin-top: 8px;
+}
+</style>
+</head>
+<body>
+
+{% if error %}
+<div style="background:#991b1b;color:#fecaca;text-align:center;padding:10px;font-size:13px;font-weight:600;">⚠ Error: {{ error }}</div>
+{% endif %}
+
+{% if is_loading %}
+<div id="loading-banner">
+  <span>⏳</span>
+  <span>Building breadth history (60 days)... this takes ~3 minutes on first load.</span>
+  <span id="prog" style="opacity:.8">{{ progress }}</span>
+</div>
+<script>
+(function poll(){
+  setTimeout(function(){
+    fetch('/status').then(r=>r.json()).then(d=>{
+      var p=document.getElementById('prog');
+      if(p) p.textContent=d.progress||'';
+      if(d.phase>=4 && d.days>0){ location.reload(); } else { poll(); }
+    }).catch(()=>poll());
+  },4000);
+})();
+</script>
+{% endif %}
+
+<!-- ── Header ── -->
+<header>
+  <div>
+    <div class="h-title">📊 Levered ETF Momentum Dashboard — Matrix Series</div>
+    <div class="h-sub">Bull/Bear signal per ETF via Matrix Series (Pine Script port, smoother=5) &nbsp;|&nbsp; 42 tickers · 21 bull + 21 bear inverse pairs</div>
+  </div>
+  <div class="h-right">
+    {% if history %}
+      {% set pct = history[-1].pct_bullish %}
+      {% if pct >= 70 %}
+        <div class="score-pill pill-bull"><span class="pill-dot dot-bull"></span>BULLISH &nbsp;|&nbsp; {{ pct }}% aligned</div>
+      {% elif pct < 50 %}
+        <div class="score-pill pill-bear"><span class="pill-dot dot-bear"></span>BEARISH &nbsp;|&nbsp; {{ pct }}% aligned</div>
+      {% else %}
+        <div class="score-pill pill-neut"><span class="pill-dot dot-neut"></span>NEUTRAL &nbsp;|&nbsp; {{ pct }}% aligned</div>
+      {% endif %}
+    {% endif %}
+    <div class="badge">Updated: <b>{{ last_updated }}</b></div>
+    <div class="badge">History: <b>{{ history|length }} days</b></div>
+  </div>
+</header>
+
+<!-- ── Tab bar ── -->
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('dashboard')">Dashboard</button>
+  <button class="tab-btn" onclick="switchTab('howto')">How It Works</button>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     DASHBOARD TAB
+═══════════════════════════════════════════════════════════════ -->
+<div id="tab-dashboard" class="tab-pane active">
+<div class="main">
+
+{% if history %}
+{% set latest = history[-1] %}
+{% set pct = latest.pct_bullish %}
+
+<!-- ── Stats ── -->
+<div class="stats-row">
+  <div class="stat-box">
+    <div class="stat-val {% if pct >= 70 %}c-bull{% elif pct < 50 %}c-bear{% else %}c-neut{% endif %}">{{ pct }}%</div>
+    <div class="stat-lbl">Today's Breadth Score</div>
+  </div>
+  {% set bull_count = namespace(n=0) %}
+  {% set bear_count = namespace(n=0) %}
+  {% for t, _ in bull_etfs %}{% if latest.signals.get(t) == 'Bull' %}{% set bull_count.n = bull_count.n + 1 %}{% endif %}{% endfor %}
+  {% for t, _ in bear_etfs %}{% if latest.signals.get(t) == 'Bear' %}{% set bear_count.n = bear_count.n + 1 %}{% endif %}{% endfor %}
+  <div class="stat-box">
+    <div class="stat-val c-bull">{{ bull_count.n }}/21</div>
+    <div class="stat-lbl">Bull ETFs → Bull Signal</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-val c-bull">{{ bear_count.n }}/21</div>
+    <div class="stat-lbl">Bear ETFs → Bear Signal</div>
+  </div>
+  {% if history|length >= 5 %}
+    {% set chg = pct - history[-5].pct_bullish %}
+    <div class="stat-box">
+      <div class="stat-val {% if chg > 0 %}c-bull{% elif chg < 0 %}c-bear{% else %}c-neut{% endif %}">{% if chg > 0 %}+{% endif %}{{ chg|round(1) }}%</div>
+      <div class="stat-lbl">5-Day Change</div>
+    </div>
+  {% endif %}
+  <div class="stat-box">
+    <div class="stat-val c-bull">{{ history | selectattr('pct_bullish', 'ge', 70) | list | length }}</div>
+    <div class="stat-lbl">Bullish Days (≥70%)</div>
+  </div>
+</div>
+
+<!-- ── Finviz Market Breadth Bars ── -->
+{% if finviz %}
+<div class="card">
+  <div class="card-header">
+    <span>Market Breadth — All Stocks (Finviz)</span>
+    <span style="font-size:10px;color:#64748b;font-weight:400;text-transform:none;">{{ finviz.date }}</span>
+  </div>
+  <div class="card-body">
+    <div class="fv-bars">
+
+      <!-- Advancing / Declining -->
+      {% if finviz.adv_pct is defined %}
+      <div class="fv-bar-card">
+        <div class="fv-bar-label">
+          <span class="fv-green">Advancing {{ finviz.adv_pct }}%</span>
+          <span class="fv-red">Declining {{ finviz.dec_pct }}%</span>
+        </div>
+        <div class="fv-bar-track">
+          <div class="fv-bar-left" style="width:{{ finviz.adv_pct }}%"></div>
+          <div class="fv-bar-right"></div>
+        </div>
+        <div class="fv-bar-sub">
+          <span>{{ finviz.adv_count }} stocks</span>
+          <span>{{ finviz.dec_count }} stocks</span>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- New High / New Low -->
+      {% if finviz.hi_pct is defined %}
+      <div class="fv-bar-card">
+        <div class="fv-bar-label">
+          <span class="fv-green">New High {{ finviz.hi_pct }}%</span>
+          <span class="fv-red">New Low {{ finviz.lo_pct }}%</span>
+        </div>
+        <div class="fv-bar-track">
+          <div class="fv-bar-left" style="width:{{ finviz.hi_pct }}%"></div>
+          <div class="fv-bar-right"></div>
+        </div>
+        <div class="fv-bar-sub">
+          <span>{{ finviz.hi_count }} stocks</span>
+          <span>{{ finviz.lo_count }} stocks</span>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Above / Below SMA50 -->
+      {% if finviz.sma50_above_pct is defined %}
+      <div class="fv-bar-card">
+        <div class="fv-bar-label">
+          <span class="fv-green">Above SMA50 {{ finviz.sma50_above_pct }}%</span>
+          <span class="fv-red">Below {{ finviz.sma50_below_pct }}%</span>
+        </div>
+        <div class="fv-bar-track">
+          <div class="fv-bar-left" style="width:{{ finviz.sma50_above_pct }}%"></div>
+          <div class="fv-bar-right"></div>
+        </div>
+        <div class="fv-bar-sub">
+          <span>{{ finviz.sma50_above_count }} stocks</span>
+          <span>{{ finviz.sma50_below_count }} stocks</span>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Above / Below SMA200 -->
+      {% if finviz.sma200_above_pct is defined %}
+      <div class="fv-bar-card">
+        <div class="fv-bar-label">
+          <span class="fv-green">Above SMA200 {{ finviz.sma200_above_pct }}%</span>
+          <span class="fv-red">Below {{ finviz.sma200_below_pct }}%</span>
+        </div>
+        <div class="fv-bar-track">
+          <div class="fv-bar-left" style="width:{{ finviz.sma200_above_pct }}%"></div>
+          <div class="fv-bar-right"></div>
+        </div>
+        <div class="fv-bar-sub">
+          <span>{{ finviz.sma200_above_count }} stocks</span>
+          <span>{{ finviz.sma200_below_count }} stocks</span>
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Charts — all in one scrollable container ── -->
+<div class="charts-scroll-wrap">
+  <div class="charts-inner" id="charts-inner">
+
+    <!-- Line chart -->
+    <div class="chart-section">
+      <div class="chart-section-header">
+        <span>% Bullish Over Time</span>
+        <span style="font-size:10px;color:#64748b;font-weight:400;text-transform:none;">Green ≥60% · Grey 40–60% · Red &lt;40%</span>
+      </div>
+      <div class="chart-body">
+        <div id="chart-wrap"><canvas id="breadth-chart"></canvas></div>
+      </div>
+      <div class="zone-legend">
+        <div class="zl-item"><div class="zl-swatch zl-bull-s"></div><span>Bullish ≥60%</span></div>
+        <div class="zl-item"><div class="zl-swatch zl-neut-s"></div><span>Neutral 40–60%</span></div>
+        <div class="zl-item"><div class="zl-swatch zl-bear-s"></div><span>Bearish &lt;40%</span></div>
+        <div class="zl-item"><div class="zl-swatch" style="background:#475569;"></div><span>SPY price (right axis)</span></div>
+        <div class="zl-item"><div class="zl-swatch" style="background:rgba(148,163,184,0.45);"></div><span>SPY volume</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+    <!-- ── Momentum pixel grid ── -->
+    <div class="px-grid-wrap">
+      <div class="px-grid-header">
+        <span>Signal Grid — Bull / Bear per ETF</span>
+        <span style="font-size:9px;color:#64748b;font-weight:400;text-transform:none;">
+          <span style="display:inline-block;width:8px;height:8px;background:#16a34a;border-radius:1px;vertical-align:middle;"></span> Bull
+          &nbsp;
+          <span style="display:inline-block;width:8px;height:8px;background:#dc2626;border-radius:1px;vertical-align:middle;"></span> Bear
+        </span>
+      </div>
+      <div class="px-grid-body">
+        <!-- Ticker labels column -->
+        <div class="px-labels">
+          <div class="px-label-vis" style="color:#475569;font-weight:800;">%</div>
+          <div class="px-label-gap"></div>
+          {% for ticker, name in bull_etfs %}
+            <div class="px-label-vis" title="{{ name }}">{{ ticker }}</div>
+          {% endfor %}
+          <div class="px-label-gap"></div>
+          {% for ticker, name in bear_etfs %}
+            <div class="px-label-vis" title="{{ name }}">{{ ticker }}</div>
+          {% endfor %}
+        </div>
+        <!-- Data columns -->
+        <div class="px-canvas" id="px-canvas">
+          {% for entry in history[-252:] %}
+          <div class="px-col" title="{{ entry.date }}: {{ entry.pct_bullish }}%">
+            <div class="px-cell-vis {% if entry.pct_bullish >= 60 %}px-pct-hi{% elif entry.pct_bullish < 40 %}px-pct-lo{% else %}px-pct-md{% endif %}"></div>
+            <div class="px-gap"></div>
+            {% for ticker, name in bull_etfs %}
+              {% set sig = entry.signals.get(ticker, '') %}
+              <div class="px-cell-vis {% if sig == 'Bull' %}px-bull{% elif sig == 'Bear' %}px-bear{% else %}px-na{% endif %}"></div>
+            {% endfor %}
+            <div class="px-gap"></div>
+            {% for ticker, name in bear_etfs %}
+              {% set sig = entry.signals.get(ticker, '') %}
+              <div class="px-cell-vis {% if sig == 'Bear' %}px-bull{% elif sig == 'Bull' %}px-bear{% else %}px-na{% endif %}"></div>
+            {% endfor %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{% else %}
+<div style="text-align:center;padding:60px;color:var(--muted);">
+  <div style="font-size:32px;margin-bottom:12px;">⏳</div>
+  <div style="font-size:16px;font-weight:600;">Building historical data...</div>
+  <div style="margin-top:6px;">Page will refresh automatically when ready.</div>
+</div>
+{% endif %}
+
+</div><!-- /main -->
+</div><!-- /tab-dashboard -->
+
+<!-- ══════════════════════════════════════════════════════════════
+     HOW IT WORKS TAB
+═══════════════════════════════════════════════════════════════ -->
+<div id="tab-howto" class="tab-pane">
+<div class="main">
+<div class="card">
+<div class="card-header">How It Works — Methodology</div>
+<div class="card-body">
+<div class="how-section">
+
+  <h2>Overview</h2>
+  <p>This dashboard measures <strong>market breadth</strong> using a universe of 42 leveraged and inverse ETFs — 21 bull ETFs and their 21 exact inverse counterparts. Each day, the <em>Matrix Series</em> indicator generates a Bull or Bear signal for every ticker. The breadth score reflects what percentage of the 42 ETFs are "correctly aligned" with their expected direction.</p>
+
+  <h2>The Matrix Series Indicator</h2>
+  <p>The Matrix Series is a Pine Script indicator originally designed for TradingView. It works by computing a triple-smoothed Z-score of price, producing two lines — <code>up</code> and <code>down</code> — where their relative position determines the signal:</p>
+
+  <div class="formula-box">
+ys1  = (High + Low + Close × 2) / 4   ← weighted close<br>
+rk3  = EMA(ys1, 5)                     ← 5-period EMA<br>
+rk4  = StdDev(ys1, 5)                  ← 5-period std deviation<br>
+rk5  = (ys1 − rk3) × 200 / rk4        ← Z-score scaled to ±200<br>
+rk6  = EMA(rk5, 5)                     ← smoothed Z-score<br>
+up   = EMA(rk6, 5)                     ← signal line<br>
+down = EMA(up, 5)                      ← signal line smoother<br>
+<br>
+Signal: up > down → <span style="color:#4ade80">● Bull</span> &nbsp;&nbsp; up &lt; down → <span style="color:#f87171">● Bear</span>
+  </div>
+
+  <p>This formula is implemented in Python using yFinance daily OHLC data, producing results that match TradingView readings exactly (verified against manual readings for June 2026).</p>
+
+  <h2>The 42 ETF Universe</h2>
+  <p>The universe pairs each major bull leveraged ETF with its exact inverse. This symmetry is intentional — in a truly bullish market, bull ETFs should read Bull <em>and</em> bear ETFs should read Bear simultaneously.</p>
+  <ul>
+    <li><strong>Bull ETFs (21):</strong> TQQQ, SPXL, TNA, WEBL, FAS, HIBL, LABU, SOXL, TECL, SPY, QQQ, ERX, GUSH, NUGT, TMF, TYD, UUP, DRN, YINN, EDC, BULZ</li>
+    <li><strong>Bear ETFs (21):</strong> SQQQ, SPXS, TZA, WEBS, FAZ, HIBS, LABD, SOXS, TECS, SH, PSQ, ERY, DRIP, DUST, TMV, TYO, UDN, DRV, YANG, EDZ, BERZ</li>
+  </ul>
+
+  <h2>Breadth Score Calculation</h2>
+  <p>Each day's breadth score counts how many of the 42 ETFs are "correctly aligned":</p>
+  <div class="formula-box">
+Correct alignment =<br>
+  &nbsp;&nbsp;(Bull ETFs with Bull signal) + (Bear ETFs with Bear signal)<br>
+<br>
+% Bullish = Correct alignments ÷ 42 × 100
+  </div>
+  <p>Example: If 15 bull ETFs show Bull and 15 bear ETFs show Bear → 30/42 = <strong>71.4% Bullish</strong>.</p>
+
+  <h2>Signal Zones</h2>
+  <table class="zone-table">
+    <thead><tr><th>Zone</th><th>Score</th><th>Interpretation</th></tr></thead>
+    <tbody>
+      <tr><td style="color:#15803d;font-weight:700;">● Bullish</td><td>≥ 70%</td><td>Strong majority of ETF pairs aligned bullishly — risk-on regime</td></tr>
+      <tr><td style="color:#374151;font-weight:700;">◆ Neutral</td><td>50–70%</td><td>Mixed signals — transition or consolidation phase</td></tr>
+      <tr><td style="color:#991b1b;font-weight:700;">● Bearish</td><td>&lt; 50%</td><td>Majority misaligned — risk-off or bearish regime</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Data & Refresh Schedule</h2>
+  <ul>
+    <li><strong>Data source:</strong> Yahoo Finance daily OHLC (free, no API key required)</li>
+    <li><strong>Warmup period:</strong> ~25 bars needed per ticker for EMA chain to stabilize</li>
+    <li><strong>History:</strong> 60+ trading days stored in Upstash Redis (survives server restarts)</li>
+    <li><strong>Daily refresh:</strong> Cron job runs after market close, appending one new day</li>
+    <li><strong>Manual refresh:</strong> Visit <code>/refresh</code> to force an update</li>
+    <li><strong>Full reseed:</strong> Visit <code>/reseed</code> if history needs to be rebuilt</li>
+  </ul>
+
+  <h2>Important Caveats</h2>
+  <ul>
+    <li>The Matrix Series uses <strong>daily closing prices only</strong> — intraday readings will not match until after market close</li>
+    <li>A small number of tickers (e.g. WEBS, BERZ) may have limited history or low liquidity — these show "—" in the heatmap and are excluded from that day's count</li>
+    <li>This indicator is a <strong>trend-following breadth tool</strong>, not a leading indicator — it confirms regime, it does not predict reversals</li>
+  </ul>
+
+</div>
+</div>
+</div>
+</div>
+</div><!-- /tab-howto -->
+
+<footer>
+  Data: Yahoo Finance &nbsp;|&nbsp; Indicator: Matrix Series (Pine Script port, smoother=5) &nbsp;|&nbsp;
+  Momentum = % of 42 leveraged ETF pairs aligned with expected direction &nbsp;|&nbsp; Refreshes daily after market close
+</footer>
+
+<!-- Chart.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+{% if history %}
+const historyData = {{ history | tojson }};
+const labels = historyData.map(d => d.date.slice(5));   // MM-DD
+const values = historyData.map(d => d.pct_bullish);
+const N = values.length;
+
+// Shared bar colors
+const barColors = values.map(v => v >= 70 ? '#15803d' : v < 50 ? '#991b1b' : '#6b7280');
+const pointColors = barColors;
+
+// ── Zone background plugin (shared) ──────────────────────────────────────────
+function makeZonePlugin(id) {
+  return {
+    id: 'zone_' + id,
+    beforeDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      if (!chartArea) return;
+      const y = scales.y;
+      const getY = v => y.getPixelForValue(v);
+      ctx.fillStyle = 'rgba(21,128,61,0.10)';
+      ctx.fillRect(chartArea.left, getY(100), chartArea.width, getY(70) - getY(100));
+      ctx.fillStyle = 'rgba(100,116,139,0.07)';
+      ctx.fillRect(chartArea.left, getY(70),  chartArea.width, getY(50) - getY(70));
+      ctx.fillStyle = 'rgba(153,27,27,0.10)';
+      ctx.fillRect(chartArea.left, getY(50),  chartArea.width, getY(0)  - getY(50));
+    }
+  };
+}
+
+// ── Shared x-axis config ──────────────────────────────────────────────────────
+const xAxis = {
+  ticks: {
+    maxTicksLimit: Math.min(N, 30),
+    font: { size: 10 },
+    color: '#6b7280',
+    maxRotation: 45,
+  },
+  grid: { color: '#e5e7eb' }
+};
+
+// ── SPY prices and volume from history ────────────────────────────────────────
+const spyValues = historyData.map(d => d.spy_close ?? null);
+const spyValid  = spyValues.filter(v => v !== null);
+const spyMin    = spyValid.length ? Math.floor(Math.min(...spyValid) * 0.98) : 0;
+const spyMax    = spyValid.length ? Math.ceil(Math.max(...spyValid)  * 1.02) : 600;
+
+const volValues = historyData.map(d => d.spy_volume ? Math.round(d.spy_volume / 1e6) : null);
+const volValid  = volValues.filter(v => v !== null);
+const volMax    = volValid.length ? Math.max(...volValid) : 100;
+
+// ── Combined chart ───────────────────────────────────────────────────────────
+const lineCtx = document.getElementById('breadth-chart').getContext('2d');
+new Chart(lineCtx, {
+  type: 'line',
+  plugins: [makeZonePlugin('line')],
+  data: {
+    labels,
+    datasets: [
+      // Breadth % (left axis)
+      {
+        type: 'line',
+        label: '% Bullish Breadth',
+        data: values,
+        yAxisID: 'y',
+        borderWidth: 2,
+        pointRadius: N > 80 ? 2 : 4,
+        pointBackgroundColor: pointColors,
+        pointBorderColor: pointColors,
+        fill: false,
+        tension: 0.3,
+        segment: { borderColor: ctx => ctx.p1.parsed.y >= 70 ? '#15803d' : ctx.p1.parsed.y < 50 ? '#dc2626' : '#6b7280' },
+        order: 1,
+      },
+      // SPY close price (right axis) — solid dark line
+      {
+        type: 'line',
+        label: 'SPY Close ($)',
+        data: spyValues,
+        yAxisID: 'ySpy',
+        borderColor: '#475569',
+        borderWidth: 2,
+        pointRadius: 0,
+        fill: false,
+        tension: 0.2,
+        order: 2,
+      },
+      // SPY volume bars (bottom of chart)
+      {
+        type: 'bar',
+        label: 'SPY Volume (M)',
+        data: volValues,
+        yAxisID: 'yVol',
+        backgroundColor: 'rgba(148,163,184,0.35)',
+        borderWidth: 0,
+        borderRadius: 1,
+        barPercentage: 0.7,
+        categoryPercentage: 0.9,
+        order: 3,
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: {
+        display: true,
+        position: 'top',
+        align: 'end',
+        labels: {
+          boxWidth: 20, boxHeight: 3, padding: 14,
+          font: { size: 11.5, weight: '600' },
+          color: '#374151',
+          usePointStyle: false,
+          filter: item => item.text !== 'SPY Volume (M)',
+        }
+      },
+      tooltip: {
+        callbacks: {
+          label: c => {
+            if (c.dataset.label.includes('Volume')) return `Vol: ${c.parsed.y}M shares`;
+            if (c.dataset.label.includes('SPY')) return `SPY $${c.parsed.y}`;
+            return `${c.parsed.y}% bullish`;
+          },
+          afterLabel: c => {
+            if (!c.dataset.label.includes('Breadth')) return '';
+            return c.parsed.y >= 70 ? '▲ Bullish' : c.parsed.y < 50 ? '▼ Bearish' : '◆ Neutral';
+          }
+        }
+      }
+    },
+    scales: {
+      x: xAxis,
+      y: {
+        min: 0, max: 100, position: 'left',
+        ticks: { stepSize: 10, font: { size: 10 }, color: '#6b7280', callback: v => v + '%' },
+        grid: { color: '#e5e7eb' }
+      },
+      ySpy: {
+        min: spyMin, max: spyMax, position: 'right',
+        ticks: { font: { size: 10 }, color: '#475569', callback: v => '$' + v },
+        grid: { drawOnChartArea: false }
+      },
+      yVol: {
+        min: 0, max: volMax * 5,
+        display: false,
+        grid: { drawOnChartArea: false }
+      }
+    }
+  }
+});
+
+// ── Scroll heatmap to end ─────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  const pxCanvas = document.getElementById('px-canvas');
+  if (pxCanvas) pxCanvas.scrollLeft = pxCanvas.scrollWidth;
+});
+
+{% endif %}
+</script>
+</body>
+</html>
