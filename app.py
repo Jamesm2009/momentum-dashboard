@@ -1,5 +1,5 @@
 """
-Market Breadth Dashboard — Matrix Series Bull/Bear Signal
+Market Momentum Dashboard — Matrix Series Bull/Bear Signal
 Computes the Matrix Series indicator (Pine Script port) using yFinance OHLC data.
 Signal: up > down = Bull, up < down = Bear
 % Bullish = (bull ETFs reading Bull + bear ETFs reading Bear) / 42 * 100
