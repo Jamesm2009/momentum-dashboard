@@ -284,7 +284,7 @@ footer {
 {% if is_loading %}
 <div id="loading-banner">
   <span>⏳</span>
-  <span>Building breadth history (60 days)... this takes ~3 minutes on first load.</span>
+  <span>Building momentum history (60 days)... this takes ~3 minutes on first load.</span>
   <span id="prog" style="opacity:.8">{{ progress }}</span>
 </div>
 <script>
@@ -342,7 +342,7 @@ footer {
 <div class="stats-row">
   <div class="stat-box">
     <div class="stat-val {% if pct >= 70 %}c-bull{% elif pct < 50 %}c-bear{% else %}c-neut{% endif %}">{{ pct }}%</div>
-    <div class="stat-lbl">Today's Breadth Score</div>
+    <div class="stat-lbl">Today's BMomentum Score</div>
   </div>
   {% set bull_count = namespace(n=0) %}
   {% set bear_count = namespace(n=0) %}
@@ -550,7 +550,7 @@ footer {
 <div class="how-section">
 
   <h2>Overview</h2>
-  <p>This dashboard measures <strong>market breadth</strong> using a universe of 42 leveraged and inverse ETFs — 21 bull ETFs and their 21 exact inverse counterparts. Each day, the <em>Matrix Series</em> indicator generates a Bull or Bear signal for every ticker. The breadth score reflects what percentage of the 42 ETFs are "correctly aligned" with their expected direction.</p>
+  <p>This dashboard measures <strong>market momentum</strong> using a universe of 42 leveraged and inverse ETFs — 21 bull ETFs and their 21 exact inverse counterparts. Each day, the <em>Matrix Series</em> indicator generates a Bull or Bear signal for every ticker. The momentum score reflects what percentage of the 42 ETFs are "correctly aligned" with their expected direction.</p>
 
   <h2>The Matrix Series Indicator</h2>
   <p>The Matrix Series is a Pine Script indicator originally designed for TradingView. It works by computing a triple-smoothed Z-score of price, producing two lines — <code>up</code> and <code>down</code> — where their relative position determines the signal:</p>
@@ -576,8 +576,8 @@ Signal: up > down → <span style="color:#4ade80">● Bull</span> &nbsp;&nbsp; u
     <li><strong>Bear ETFs (21):</strong> SQQQ, SPXS, TZA, WEBS, FAZ, HIBS, LABD, SOXS, TECS, SH, PSQ, ERY, DRIP, DUST, TMV, TYO, UDN, DRV, YANG, EDZ, BERZ</li>
   </ul>
 
-  <h2>Breadth Score Calculation</h2>
-  <p>Each day's breadth score counts how many of the 42 ETFs are "correctly aligned":</p>
+  <h2>Momentum Score Calculation</h2>
+  <p>Each day's momentum score counts how many of the 42 ETFs are "correctly aligned":</p>
   <div class="formula-box">
 Correct alignment =<br>
   &nbsp;&nbsp;(Bull ETFs with Bull signal) + (Bear ETFs with Bear signal)<br>
@@ -610,7 +610,7 @@ Correct alignment =<br>
   <ul>
     <li>The Matrix Series uses <strong>daily closing prices only</strong> — intraday readings will not match until after market close</li>
     <li>A small number of tickers (e.g. WEBS, BERZ) may have limited history or low liquidity — these show "—" in the heatmap and are excluded from that day's count</li>
-    <li>This indicator is a <strong>trend-following breadth tool</strong>, not a leading indicator — it confirms regime, it does not predict reversals</li>
+    <li>This indicator is a <strong>trend-following momentum tool</strong>, not a leading indicator — it confirms regime, it does not predict reversals</li>
   </ul>
 
 </div>
