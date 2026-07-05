@@ -235,9 +235,9 @@ def fetch_finviz_breadth():
 
 
 def save_finviz(data):
-    """Save Finviz breadth data to Redis (25-hour TTL)."""
+    """Save Finviz breadth data to Redis (4-day TTL)."""
     if data:
-        _rset(REDIS_KEY_FV, data, ex=90000)
+        _rset(REDIS_KEY_FV, data, ex=345600)
 
 
 def load_finviz():
@@ -424,6 +424,10 @@ def run_daily_refresh():
         pct     = results[today].get("pct_bullish")
 
         if pct is None:
+            # Still scrape Finviz even if market data isn't ready
+            fv = fetch_finviz_breadth()
+            if fv:
+                save_finviz(fv)
             with _lock:
                 cache["phase"]    = 4
                 cache["progress"] = "No data for today yet"
